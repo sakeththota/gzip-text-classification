@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cstring>
 #include <utility>
+#include <future>
+#include <thread>
 
 std::pair<char *, int> compress(char *uncompressed, int len) {
   char *compressed = (char *)malloc(len * 2 + 1);
@@ -53,29 +55,35 @@ struct NCD {
   NCD(int label, float ncd) : label(label), ncd(ncd) {}
 };
 
+NCD compute_ncd(Sample x1, Sample x2, size_t c_x1) {
+  size_t c_x2 = compress(x2.text, x2.len).second;
+  char *x1x2 = new char[x1.len + x2.len + 1];
+  std::strcpy(x1x2, x1.text);
+  std::strcat(x1x2, x2.text);
+  size_t c_x1x2 = compress(x1x2, x1.len + x2.len).second;
+  return NCD(x2.label, (c_x1x2 - std::min(c_x1, c_x2)) / (float)std::max(c_x1, c_x2));
+}
+
 int main() {
-  std::vector<Sample> training_samples =
-      parse_data("datasets/agnews_train.csv");
+  std::vector<Sample> training_samples = parse_data("datasets/agnews_train.csv");
   std::vector<Sample> test_samples = parse_data("datasets/agnews_test.csv");
 
   // compute ncd for each pair of test and training samples
   int num_correct = 0;
-  for (int j = 0; j < test_samples.size(); ++j) {
-    Sample sample = test_samples[j];
-    int c_x1 = compress(sample.text, sample.len).second;
+  for (auto &test_sample : test_samples) {
+    int c_x1 = compress(test_sample.text, test_sample.len).second;
+    std::vector<std::future<NCD>> futures;
+    for (auto& training_sample : training_samples) {
+      futures.push_back(std::async(std::launch::async, compute_ncd, test_sample, training_sample, c_x1));
+    }
+
+    for(auto& future : futures) {
+      future.wait();
+    }
+
     std::vector<NCD> ncds;
-    for (int i = 0; i < training_samples.size(); ++i) {
-      int c_x2 =
-          compress(training_samples[i].text, training_samples[i].len).second;
-
-      char *x1x2 = new char[sample.len + training_samples[i].len + 1];
-      std::strcpy(x1x2, sample.text);
-      std::strcat(x1x2, training_samples[i].text);
-      int c_x1x2 = compress(x1x2, sample.len + training_samples[i].len).second;
-
-      ncds.emplace_back(training_samples[i].label,
-                        (c_x1x2 - std::min(c_x1, c_x2)) /
-                            (float)std::max(c_x1, c_x2));
+    for (auto& future : futures) {
+      ncds.push_back(future.get());
     }
 
     // k-NN w/ k=2
@@ -92,16 +100,9 @@ int main() {
       }
     }
 
-    std::cout << "---" << std::endl
-              << "Sample: " << std::endl
-              << sample.text << std::endl
-              << std::endl;
     std::cout << "Predicted: " << predicted << std::endl;
-    std::cout << "Actual: " << sample.label << std::endl;
-    if (predicted == sample.label)
+    std::cout << "Actual: " << test_sample.label << std::endl;
+    if (predicted == test_sample.label)
       num_correct++;
-    std::cout << "Running Accuracy: " << num_correct << "/" << j + 1
-              << std::endl
-              << "---" << std::endl;
   }
 }

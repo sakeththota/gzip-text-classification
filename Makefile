@@ -6,7 +6,7 @@ endif
 
 agnews: 
 	@echo "Training with Ag News"
-	g++ -g -o test main.cpp -lz
+	g++ --std=c++17 -g -o test main.cpp -lz
 	$(VALGRIND) ./test
 	@echo
 
