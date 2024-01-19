@@ -15,5 +15,6 @@ agnews:
 	@echo
 
 clean:
+	rm main
 	rm -f *.o
 	rm -rf -f tests/*.dSYM *.dSYM
