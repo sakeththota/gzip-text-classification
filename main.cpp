@@ -58,13 +58,12 @@ int main() {
       parse_data("datasets/agnews_train.csv");
   std::vector<Sample> test_samples = parse_data("datasets/agnews_test.csv");
 
-  for (auto &sample : test_samples) {
+  // compute ncd for each pair of test and training samples
+  int num_correct = 0;
+  for (int j = 0; j < test_samples.size(); ++j) {
+    Sample sample = test_samples[j];
     int c_x1 = compress(sample.text, sample.len).second;
     std::vector<NCD> ncds;
-    std::cout << "Sample:" << std::endl
-              << sample.text << std::endl
-              << std::endl;
-
     for (int i = 0; i < training_samples.size(); ++i) {
       int c_x2 =
           compress(training_samples[i].text, training_samples[i].len).second;
@@ -77,24 +76,32 @@ int main() {
       ncds.emplace_back(training_samples[i].label,
                         (c_x1x2 - std::min(c_x1, c_x2)) /
                             (float)std::max(c_x1, c_x2));
-      std::cout << "\r" << i + 1 << "/" << training_samples.size()
-                << std::flush;
-    }
-    std::sort(ncds.begin(), ncds.end(),
-              [](const NCD &a, const NCD &b) { return a.ncd > b.ncd; });
-    std::vector<int> freqs(4);
-    for (size_t i = 0; i < 2 && i < ncds.size(); ++i) {
-      freqs[ncds[i].label - 1]++;
     }
 
+    // k-NN w/ k=2
+    std::sort(ncds.begin(), ncds.end(),
+              [](const NCD &a, const NCD &b) { return a.ncd > b.ncd; });
+    std::vector<int> label_freqs(4);
+    for (size_t i = 0; i < ncds.size() && i < 2; ++i) {
+      label_freqs[ncds[i].label - 1]++;
+    }
     size_t predicted = 0;
     for (size_t i = 0; i < 4; ++i) {
-      if (freqs[i] > freqs[predicted]) {
-        predicted = i;
+      if (label_freqs[i] > label_freqs[predicted]) {
+        predicted = i + 1;
       }
     }
 
-    std::cout << std::endl << "Predicted: " << predicted + 1 << std::endl;
-    std::cout << "Actual: " << sample.label << std::endl << std::endl;
+    std::cout << "---" << std::endl
+              << "Sample: " << std::endl
+              << sample.text << std::endl
+              << std::endl;
+    std::cout << "Predicted: " << predicted << std::endl;
+    std::cout << "Actual: " << sample.label << std::endl;
+    if (predicted == sample.label)
+      num_correct++;
+    std::cout << "Running Accuracy: " << num_correct << "/" << j + 1
+              << std::endl
+              << "---" << std::endl;
   }
 }
