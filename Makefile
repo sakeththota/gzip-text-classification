@@ -1,7 +1,3 @@
-LIB_DIR := .
-CXX := g++
-CXXFLAGS := -g -lz --std=c++17 -pedantic
-
 # Check for valgrind
 export VALGRIND :=
 ifneq "$(shell command -v valgrind 2> /dev/null)" ""
@@ -10,11 +6,11 @@ endif
 
 agnews: 
 	@echo "Training with Ag News"
-	$(CXX) $(CXXFLAGS) -I$(LIB_DIR) -o main main.cpp
-	$(VALGRIND) ./main
+	g++ -g -o test main.cpp -lz
+	$(VALGRIND) ./test
 	@echo
 
 clean:
-	rm main
+	rm -f test
 	rm -f *.o
 	rm -rf -f tests/*.dSYM *.dSYM
