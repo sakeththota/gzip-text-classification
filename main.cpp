@@ -1,15 +1,15 @@
 #include "rapidcsv.h"
 #include "zlib.h"
-#include <iterator>
+#include <algorithm>
+#include <cstring>
 #include <utility>
 
-std::pair<char *, int> compress(std::string uncompressed) {
-  int len = uncompressed.length();
+std::pair<char *, int> compress(char *uncompressed, int len) {
   char *compressed = (char *)malloc(len * 2 + 1);
 
   z_stream strm = {0};
   strm.avail_in = (uInt)len;
-  strm.next_in = (Bytef *)uncompressed.c_str();
+  strm.next_in = (Bytef *)uncompressed;
   strm.avail_out = (uInt)len * 2;
   strm.next_out = (Bytef *)compressed;
 
@@ -20,19 +20,81 @@ std::pair<char *, int> compress(std::string uncompressed) {
   return std::make_pair(compressed, (int)strm.total_out);
 }
 
-int main() {
-  rapidcsv::Document doc("datasets/agnews_train.csv");
+struct Sample {
+  char *text;
+  int len;
+  int label;
+
+  Sample(std::string text, int len, int label) : len(len), label(label) {
+    this->text = new char[len + 1];
+    std::strcpy(this->text, text.c_str());
+  }
+};
+
+std::vector<Sample> parse_data(std::string filename) {
+  rapidcsv::Document doc(filename);
   int n = doc.GetRowCount();
+  std::vector<int> classes = doc.GetColumn<int>("Class Index");
   std::vector<std::string> titles = doc.GetColumn<std::string>("Title");
   std::vector<std::string> descriptions =
       doc.GetColumn<std::string>("Description");
-
-  std::vector<std::string> training_samples;
-  std::transform(titles.begin(), titles.end(), descriptions.begin(),
-                 std::back_inserter(training_samples),
-                 std::plus<std::string>());
-  for (auto sample : training_samples) {
-    const auto &[compressed, len] = compress(sample);
+  std::vector<Sample> samples;
+  for (int i = 0; i < n; ++i) {
+    std::string concatenated = titles[i] + " " + descriptions[i];
+    samples.emplace_back(concatenated, concatenated.length(), classes[i]);
   }
-  std::cout << n << std::endl;
+  return samples;
+}
+
+struct NCD {
+  int label;
+  float ncd;
+
+  NCD(int label, float ncd) : label(label), ncd(ncd) {}
+};
+
+int main() {
+  std::vector<Sample> training_samples =
+      parse_data("datasets/agnews_train.csv");
+  std::vector<Sample> test_samples = parse_data("datasets/agnews_test.csv");
+
+  for (auto &sample : test_samples) {
+    int c_x1 = compress(sample.text, sample.len).second;
+    std::vector<NCD> ncds;
+    std::cout << "Sample:" << std::endl
+              << sample.text << std::endl
+              << std::endl;
+
+    for (int i = 0; i < training_samples.size(); ++i) {
+      int c_x2 =
+          compress(training_samples[i].text, training_samples[i].len).second;
+
+      char *x1x2 = new char[sample.len + training_samples[i].len + 1];
+      std::strcpy(x1x2, sample.text);
+      std::strcat(x1x2, training_samples[i].text);
+      int c_x1x2 = compress(x1x2, sample.len + training_samples[i].len).second;
+
+      ncds.emplace_back(training_samples[i].label,
+                        (c_x1x2 - std::min(c_x1, c_x2)) /
+                            (float)std::max(c_x1, c_x2));
+      std::cout << "\r" << i + 1 << "/" << training_samples.size()
+                << std::flush;
+    }
+    std::sort(ncds.begin(), ncds.end(),
+              [](const NCD &a, const NCD &b) { return a.ncd > b.ncd; });
+    std::vector<int> freqs(4);
+    for (size_t i = 0; i < 2 && i < ncds.size(); ++i) {
+      freqs[ncds[i].label - 1]++;
+    }
+
+    size_t predicted = 0;
+    for (size_t i = 0; i < 4; ++i) {
+      if (freqs[i] > freqs[predicted]) {
+        predicted = i;
+      }
+    }
+
+    std::cout << std::endl << "Predicted: " << predicted + 1 << std::endl;
+    std::cout << "Actual: " << sample.label << std::endl << std::endl;
+  }
 }
