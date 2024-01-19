@@ -80,7 +80,7 @@ int main() {
 
     // k-NN w/ k=2
     std::sort(ncds.begin(), ncds.end(),
-              [](const NCD &a, const NCD &b) { return a.ncd > b.ncd; });
+              [](const NCD &a, const NCD &b) { return a.ncd < b.ncd; });
     std::vector<int> label_freqs(4);
     for (size_t i = 0; i < ncds.size() && i < 2; ++i) {
       label_freqs[ncds[i].label - 1]++;
