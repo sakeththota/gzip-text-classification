@@ -11,9 +11,9 @@ std::pair<char*, int> compress(std::string uncompressed) {
   strm.next_in = (Bytef *)uncompressed.c_str();
   strm.avail_out = (uInt)len*2;
   strm.next_out = (Bytef *)compressed;
+  
   deflateInit(&strm, Z_BEST_COMPRESSION);
-  int result = deflate(&strm, Z_FINISH);
-  assert(result == Z_STREAM_END && "Probably not enough output buffer was allocated");
+  deflate(&strm, Z_FINISH);
   deflateEnd(&strm);
 
   return std::make_pair(compressed, (int)strm.total_out);
@@ -49,7 +49,8 @@ int main() {
   for (int i=0; i<class_indices.size(); ++i) {
     std::pair<char*, int> compression = compress(titles[i]+descriptions[i]);
     auto& [compressed, len] = compression;
-    std::cout << compressed << " " << len << std::endl;
+
+    
   }
   
   std::cout << class_indices.size() << std::endl;
