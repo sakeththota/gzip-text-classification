@@ -28,12 +28,12 @@ struct NCD {
 };
 
 std::pair<char *, size_t> compress(char *uncompressed, int len) {
-  char *compressed = (char *)malloc(len * 2 + 1);
+  char *compressed = (char *)malloc(len + 1);
 
   z_stream strm = {0};
   strm.avail_in = (int)len;
   strm.next_in = (Bytef *)uncompressed;
-  strm.avail_out = (int)len * 2;
+  strm.avail_out = (int)len;
   strm.next_out = (Bytef *)compressed;
 
   deflateInit(&strm, Z_BEST_COMPRESSION);
@@ -65,6 +65,7 @@ int main() {
 
   // compute ncd for each pair of test and training samples
   size_t num_correct = 0;
+  size_t curr_sample = 1;
   for (auto &test_sample : test_samples) {
     size_t c_x1 = compress(test_sample.text, test_sample.len).second;
 
@@ -94,5 +95,8 @@ int main() {
     std::cout << "Actual: " << test_sample.label << std::endl;
     if (predicted == test_sample.label)
       num_correct++;
+    std::cout << "Accuracy: " << num_correct / (float)curr_sample << std::endl
+              << std::endl;
+    curr_sample++;
   }
 }
