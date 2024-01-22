@@ -67,16 +67,17 @@ int main() {
   size_t num_correct = 0;
   size_t curr_sample = 1;
   for (auto &test_sample : test_samples) {
-    size_t c_x1 = compress(test_sample.text, test_sample.len).second;
+    const auto &[z_x1, c_x1] = compress(test_sample.text, test_sample.len);
 
     std::vector<NCD> ncds;
     for (auto &train_sample : training_samples) {
-      size_t c_x2 = compress(train_sample.text, train_sample.len).second;
+      const auto &[z_x2, c_x2] = compress(train_sample.text, train_sample.len);
 
       char *x1x2 = new char[test_sample.len + train_sample.len + 1];
       std::strcpy(x1x2, test_sample.text);
       std::strcat(x1x2, train_sample.text);
-      size_t c_x1x2 = compress(x1x2, test_sample.len + train_sample.len).second;
+      const auto &[z_x1x2, c_x1x2] =
+          compress(x1x2, test_sample.len + train_sample.len);
 
       ncds.emplace_back(train_sample.label, (c_x1x2 - std::min(c_x1, c_x2)) /
                                                 (float)std::max(c_x1, c_x2));
