@@ -1,6 +1,6 @@
 # Gzip Text Classification
 
-The full blog post for this project can be found [here](skth.vercel.app/blog/gzip-knn)
+The full blog post for this project can be found [here](https://skth.vercel.app/blog/gzip-knn)
 
 ## Results
 Training on the AG News dataset I was able to achieve about 85% accuracy after testing 1/3
